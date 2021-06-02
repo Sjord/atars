@@ -1,4 +1,4 @@
-use coffee::graphics::{Color, Frame, Window, WindowSettings};
+use coffee::graphics::{Color, Frame, Mesh, Point, Shape, Window, WindowSettings};
 use coffee::load::Task;
 use coffee::{Game, Result, Timer};
 
@@ -11,7 +11,6 @@ fn main() {
         maximized: false,
     }).unwrap();
 }
-
 struct Atars {
 }
 
@@ -26,8 +25,44 @@ impl Game for Atars {
 
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
         // Clear the current frame
-        frame.clear(Color::BLACK);
+        frame.clear(Color::BLUE);
 
-        // Draw your game here. Check out the `graphics` module!
+        let piece = Shape::Ellipse {
+            center: Point::new(100., 100.),
+            horizontal_radius: 40.,
+            vertical_radius: 40.,
+            rotation: 0.0
+        };
+        let mut mesh = Mesh::new();
+        mesh.fill(piece, Color::WHITE);
+
+        mesh.draw(&mut frame.as_target());
+
+        let grid = self.create_grid_mesh(frame);
+        grid.draw(&mut frame.as_target());
+    }
+}
+
+impl Atars {
+    fn create_grid_mesh(&self, frame: &Frame) -> Mesh {
+        let mut mesh = Mesh::new();
+        let space = frame.width() / 7.;
+        for x in 1..7 {
+            let x = x as f32 * space;
+            let line = Shape::Polyline {
+                points: vec!(Point::new(x, 0.), Point::new(x, frame.height()))
+            };
+            mesh.stroke(line, Color::BLACK, 1.0);
+        }
+
+        let space = frame.height() / 7.;
+        for y in 1..7 {
+            let y = y as f32 * space;
+            let line = Shape::Polyline {
+                points: vec!(Point::new(0., y), Point::new(frame.width(), y))
+            };
+            mesh.stroke(line, Color::BLACK, 1.0);
+        }
+        mesh
     }
 }
