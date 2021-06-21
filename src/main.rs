@@ -11,7 +11,51 @@ fn main() {
         maximized: false,
     }).unwrap();
 }
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Square {
+    Empty,
+    White,
+    Black,
+}
+
+impl Into<Option<Color>> for Square {
+    fn into(self) -> Option<Color> {
+        match self {
+            Square::White => Some(Color::WHITE),
+            Square::Black => Some(Color::BLACK),
+            Square::Empty => None
+        }
+    }
+}
+
+struct Board {
+    board : [Square; 49]
+}
+
+impl Board {
+    fn new() -> Board {
+        let mut b = Board { board: [Square::Empty; 49] };
+        b.set(0, 0, Square::Black);
+        b.set(6, 6, Square::Black);
+        b.set(0, 6, Square::White);
+        b.set(6, 0, Square::White);
+        b
+    }
+
+    fn set(&mut self, x: usize, y: usize, new_value: Square) {
+        let offset = x + y * 7;
+        self.board[offset] = new_value;
+    }
+
+    fn get(&self, x: usize, y: usize) -> Square {
+        let offset = x + y * 7;
+        self.board[offset]
+    }
+}
+
 struct Atars {
+    board : Board
 }
 
 impl Game for Atars {
@@ -20,23 +64,15 @@ impl Game for Atars {
 
     fn load(_window: &Window) -> Task<Atars> {
         // Load your game assets here. Check out the `load` module!
-        Task::succeed(|| Atars { /* ... */ })
+        Task::succeed(|| Atars::new())
     }
 
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
         // Clear the current frame
         frame.clear(Color::BLUE);
 
-        let piece = Shape::Ellipse {
-            center: Point::new(100., 100.),
-            horizontal_radius: 40.,
-            vertical_radius: 40.,
-            rotation: 0.0
-        };
-        let mut mesh = Mesh::new();
-        mesh.fill(piece, Color::WHITE);
-
-        mesh.draw(&mut frame.as_target());
+        let pieces = self.create_pieces_mesh(frame);
+        pieces.draw(&mut frame.as_target());
 
         let grid = self.create_grid_mesh(frame);
         grid.draw(&mut frame.as_target());
@@ -44,6 +80,34 @@ impl Game for Atars {
 }
 
 impl Atars {
+    fn new() -> Atars {
+        Atars { board: Board::new() }
+    }
+
+    fn create_pieces_mesh(&self, frame: &Frame) -> Mesh {
+        let mut mesh = Mesh::new();
+        let space = frame.width() / 7.;
+
+        for x in 0..7 {
+            for y in 0..7 {
+                let p = self.board.get(x, y);
+                if p != Square::Empty {
+                    let piece = Shape::Ellipse {
+                        center: Point::new((0.5 + x as f32) * space, 
+                        (0.5 + y as f32) * space),
+                        horizontal_radius: space * 0.4,
+                        vertical_radius: space * 0.4,
+                        rotation: 0.0
+                    };
+                    let color : Option<Color> = p.into();
+                    mesh.fill(piece, color.unwrap());
+                }
+            }
+        }
+
+        mesh
+    }
+
     fn create_grid_mesh(&self, frame: &Frame) -> Mesh {
         let mut mesh = Mesh::new();
         let space = frame.width() / 7.;
