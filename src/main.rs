@@ -1,6 +1,9 @@
 use coffee::graphics::{Color, Frame, Mesh, Point, Shape, Window, WindowSettings};
 use coffee::load::Task;
 use coffee::{Game, Result, Timer};
+use coffee::input::Mouse;
+use coffee::input::mouse::Button;
+use nalgebra::geometry::Point2;
 
 fn main() {
     Atars::run(WindowSettings {
@@ -13,43 +16,43 @@ fn main() {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum Square {
-    Empty,
+enum Piece {
     White,
     Black,
 }
 
-impl Into<Option<Color>> for Square {
-    fn into(self) -> Option<Color> {
+impl Into<Color> for Piece {
+    fn into(self) -> Color {
         match self {
-            Square::White => Some(Color::WHITE),
-            Square::Black => Some(Color::BLACK),
-            Square::Empty => None
+            Piece::White => Color::WHITE,
+            Piece::Black => Color::BLACK,
         }
     }
 }
 
+type SquarePosition = Point2<usize>;
+
 struct Board {
-    board : [Square; 49]
+    board : [Option<Piece>; 49]
 }
 
 impl Board {
     fn new() -> Board {
-        let mut b = Board { board: [Square::Empty; 49] };
-        b.set(0, 0, Square::Black);
-        b.set(6, 6, Square::Black);
-        b.set(0, 6, Square::White);
-        b.set(6, 0, Square::White);
+        let mut b = Board { board: [None; 49] };
+        b.set(SquarePosition::new(0, 0), Some(Piece::Black));
+        b.set(SquarePosition::new(6, 6), Some(Piece::Black));
+        b.set(SquarePosition::new(0, 6), Some(Piece::White));
+        b.set(SquarePosition::new(6, 0), Some(Piece::White));
         b
     }
 
-    fn set(&mut self, x: usize, y: usize, new_value: Square) {
-        let offset = x + y * 7;
+    fn set(&mut self, pos: SquarePosition, new_value: Option<Piece>) {
+        let offset = pos.x + pos.y * 7;
         self.board[offset] = new_value;
     }
 
-    fn get(&self, x: usize, y: usize) -> Square {
-        let offset = x + y * 7;
+    fn get(&self, pos: SquarePosition) -> Option<Piece> {
+        let offset = pos.x + pos.y * 7;
         self.board[offset]
     }
 }
@@ -59,7 +62,7 @@ struct Atars {
 }
 
 impl Game for Atars {
-    type Input = (); // No input data
+    type Input = Mouse;
     type LoadingScreen = (); // No loading screen
 
     fn load(_window: &Window) -> Task<Atars> {
@@ -77,6 +80,46 @@ impl Game for Atars {
         let grid = self.create_grid_mesh(frame);
         grid.draw(&mut frame.as_target());
     }
+
+    fn interact(&mut self, input: &mut Mouse, window: &mut Window) {
+        let clicks = input.button_clicks(Button::Left);
+
+        let grid = CoordinateGrid::new(window.width(), window.height());
+        for point in clicks {
+            let pos = grid.from_point(point);
+            self.handle_click(pos);
+        }
+    }
+}
+
+struct CoordinateGrid {
+    width: f32,
+    height: f32,
+}
+
+impl CoordinateGrid {
+    fn new(width: f32, height: f32) -> CoordinateGrid {
+        CoordinateGrid { width, height }
+    }
+
+    /// get the point in the center of the square
+    fn center(&self, pos: SquarePosition) -> Point {
+        Point::new(
+            (0.5 + pos.x as f32) * (self.width / 7.),
+            (0.5 + pos.y as f32) * (self.height / 7.)
+        )
+    }
+
+    fn piece_radius(&self) -> f32 {
+        self.width / 20.
+    }
+
+    fn from_point(&self, point: &Point) -> SquarePosition {
+        SquarePosition::new(
+            (point.x / self.width * 7.) as usize,
+            (point.y / self.height * 7.) as usize
+        )
+    }
 }
 
 impl Atars {
@@ -86,21 +129,20 @@ impl Atars {
 
     fn create_pieces_mesh(&self, frame: &Frame) -> Mesh {
         let mut mesh = Mesh::new();
-        let space = frame.width() / 7.;
+        let grid = CoordinateGrid::new(frame.width(), frame.height());
 
         for x in 0..7 {
             for y in 0..7 {
-                let p = self.board.get(x, y);
-                if p != Square::Empty {
+                let pos = SquarePosition::new(x, y);
+                let p = self.board.get(pos);
+                if let Some(p) = p {
                     let piece = Shape::Ellipse {
-                        center: Point::new((0.5 + x as f32) * space, 
-                        (0.5 + y as f32) * space),
-                        horizontal_radius: space * 0.4,
-                        vertical_radius: space * 0.4,
+                        center: grid.center(pos),
+                        horizontal_radius: grid.piece_radius(),
+                        vertical_radius: grid.piece_radius(),
                         rotation: 0.0
                     };
-                    let color : Option<Color> = p.into();
-                    mesh.fill(piece, color.unwrap());
+                    mesh.fill(piece, p.into());
                 }
             }
         }
@@ -128,5 +170,9 @@ impl Atars {
             mesh.stroke(line, Color::BLACK, 1.0);
         }
         mesh
+    }
+
+    fn handle_click(&self, pos: SquarePosition) {
+        println!("{:?}", pos);
     }
 }
