@@ -58,7 +58,8 @@ impl Board {
 }
 
 struct Atars {
-    board : Board
+    board : Board,
+    selected : Option<SquarePosition>
 }
 
 impl Game for Atars {
@@ -122,9 +123,46 @@ impl CoordinateGrid {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Move {
+    from: SquarePosition,
+    to: SquarePosition
+}
+
+fn abs_difference<T: std::ops::Sub<Output = T> + Ord>(x: T, y: T) -> T {
+    if x < y {
+        y - x
+    } else {
+        x - y
+    }
+}
+
+impl Move {
+    fn new(from: SquarePosition, to: SquarePosition) -> Move {
+        Move { from, to }
+    }
+
+    fn distance(&self) -> usize {
+        let horizontal = abs_difference(self.from.x, self.to.x);
+        let vertical = abs_difference(self.from.y, self.to.y);
+        std::cmp::max(horizontal, vertical)
+    }
+}
+
+#[test]
+fn test_move_distance() {
+    let from = SquarePosition::new(0, 0);
+    let to = SquarePosition::new(1, 2);
+    assert_eq!(Move::new(from, to).distance(), 2);
+    assert_eq!(Move::new(from, to).distance(), Move::new(to, from).distance());
+}
+
 impl Atars {
     fn new() -> Atars {
-        Atars { board: Board::new() }
+        Atars { 
+            board: Board::new(), 
+            selected: None 
+        }
     }
 
     fn create_pieces_mesh(&self, frame: &Frame) -> Mesh {
@@ -172,7 +210,14 @@ impl Atars {
         mesh
     }
 
-    fn handle_click(&self, pos: SquarePosition) {
-        println!("{:?}", pos);
+    fn handle_click(&mut self, pos: SquarePosition) {
+        match self.selected {
+            None => self.selected = Some(pos),
+            Some(old_pos) => self.perform_move(Move::new(old_pos, pos))
+        }
+    }
+
+    fn perform_move(&self, move_: Move) {
+        println!("{:?}", move_);
     }
 }
