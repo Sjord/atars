@@ -1,4 +1,4 @@
-use coffee::graphics::{Color, Frame, Mesh, Point, Shape, Window, WindowSettings};
+use coffee::graphics::{Color, Frame, Mesh, Point, Shape, Window, WindowSettings, Rectangle};
 use coffee::load::Task;
 use coffee::{Game, Result, Timer};
 use coffee::input::Mouse;
@@ -26,6 +26,15 @@ impl Into<Color> for Piece {
         match self {
             Piece::White => Color::WHITE,
             Piece::Black => Color::BLACK,
+        }
+    }
+}
+
+impl Piece {
+    fn other(&self) -> Piece {
+        match self {
+            Piece::White => Piece::Black,
+            Piece::Black => Piece::White,
         }
     }
 }
@@ -59,7 +68,8 @@ impl Board {
 
 struct Atars {
     board : Board,
-    selected : Option<SquarePosition>
+    selected : Option<SquarePosition>,
+    turn: Piece,
 }
 
 impl Game for Atars {
@@ -80,6 +90,9 @@ impl Game for Atars {
 
         let grid = self.create_grid_mesh(frame);
         grid.draw(&mut frame.as_target());
+
+        let selected = self.create_selected_mesh(frame);
+        selected.draw(&mut frame.as_target());
     }
 
     fn interact(&mut self, input: &mut Mouse, window: &mut Window) {
@@ -109,6 +122,15 @@ impl CoordinateGrid {
             (0.5 + pos.x as f32) * (self.width / 7.),
             (0.5 + pos.y as f32) * (self.height / 7.)
         )
+    }
+
+    fn rectangle(&self, pos: SquarePosition) -> Rectangle<f32> {
+        Rectangle {
+            x: (pos.x as f32) * (self.width / 7.),
+            y: (pos.y as f32) * (self.height / 7.),
+            width: self.width / 7.,
+            height: self.height / 7.
+        }
     }
 
     fn piece_radius(&self) -> f32 {
@@ -161,8 +183,21 @@ impl Atars {
     fn new() -> Atars {
         Atars { 
             board: Board::new(), 
-            selected: None 
+            selected: None,
+            turn: Piece::White,
         }
+    }
+
+    fn create_selected_mesh(&self, frame: &Frame) -> Mesh {
+        let grid = CoordinateGrid::new(frame.width(), frame.height());
+        let mut mesh = Mesh::new();
+
+        if let Some(sel_pos) = self.selected {
+            let rect = Shape::Rectangle(grid.rectangle(sel_pos));
+            mesh.stroke(rect, Color::RED, 1.0)
+        }
+
+        mesh
     }
 
     fn create_pieces_mesh(&self, frame: &Frame) -> Mesh {
@@ -212,12 +247,29 @@ impl Atars {
 
     fn handle_click(&mut self, pos: SquarePosition) {
         match self.selected {
-            None => self.selected = Some(pos),
+            None => {
+                if self.board.get(pos) == Some(self.turn) {
+                    self.selected = Some(pos);
+                }
+            }
             Some(old_pos) => self.perform_move(Move::new(old_pos, pos))
         }
     }
 
-    fn perform_move(&self, move_: Move) {
-        println!("{:?}", move_);
+    fn is_valid_move(&self, move_: &Move) -> bool {
+        move_.distance() <= 2 
+        && self.board.get(move_.from) == Some(self.turn)
+        && self.board.get(move_.to) == None
+    }
+
+    fn perform_move(&mut self, move_: Move) {
+        if self.is_valid_move(&move_) {
+            self.board.set(move_.to, Some(self.turn));
+            if move_.distance() == 2 {
+                self.board.set(move_.from, None);
+            }
+            self.turn = self.turn.other();
+        }
+        self.selected = None;
     }
 }
