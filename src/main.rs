@@ -1,9 +1,13 @@
 use coffee::graphics::{Color, Frame, Mesh, Point, Shape, Window, WindowSettings, Rectangle};
 use coffee::load::Task;
-use coffee::{Game, Result, Timer};
+use coffee::{Game, Timer};
 use coffee::input::Mouse;
 use coffee::input::mouse::Button;
 use nalgebra::geometry::Point2;
+use std::ops::Index;
+use std::ops::IndexMut;
+use std::vec::Vec;
+
 
 fn main() {
     Atars::run(WindowSettings {
@@ -48,21 +52,41 @@ struct Board {
 impl Board {
     fn new() -> Board {
         let mut b = Board { board: [None; 49] };
-        b.set(SquarePosition::new(0, 0), Some(Piece::Black));
-        b.set(SquarePosition::new(6, 6), Some(Piece::Black));
-        b.set(SquarePosition::new(0, 6), Some(Piece::White));
-        b.set(SquarePosition::new(6, 0), Some(Piece::White));
+        b[SquarePosition::new(0, 0)] = Some(Piece::Black);
+        b[SquarePosition::new(6, 6)] = Some(Piece::Black);
+        b[SquarePosition::new(0, 6)] = Some(Piece::White);
+        b[SquarePosition::new(6, 0)] = Some(Piece::White);
         b
     }
 
-    fn set(&mut self, pos: SquarePosition, new_value: Option<Piece>) {
-        let offset = pos.x + pos.y * 7;
-        self.board[offset] = new_value;
+    fn perform_move(&mut self, move_: &Move) -> bool {
+        let p = self[move_.from];
+        match p {
+            None => false,
+            Some(p) => {
+                self[move_.to] = Some(p);
+                if move_.distance() == 2 {
+                    self[move_.from] = None;
+                }
+                true
+            }
+        }
     }
+}
 
-    fn get(&self, pos: SquarePosition) -> Option<Piece> {
+impl Index<SquarePosition> for Board {
+    type Output = Option<Piece>;
+
+    fn index(&self, pos: SquarePosition) -> &Option<Piece> {
         let offset = pos.x + pos.y * 7;
-        self.board[offset]
+        &self.board[offset]
+    }
+}
+
+impl IndexMut<SquarePosition> for Board {
+    fn index_mut(&mut self, pos: SquarePosition) -> &mut Self::Output {
+        let offset = pos.x + pos.y * 7;
+        &mut self.board[offset]
     }
 }
 
@@ -207,7 +231,7 @@ impl Atars {
         for x in 0..7 {
             for y in 0..7 {
                 let pos = SquarePosition::new(x, y);
-                let p = self.board.get(pos);
+                let p = self.board[pos];
                 if let Some(p) = p {
                     let piece = Shape::Ellipse {
                         center: grid.center(pos),
@@ -248,7 +272,7 @@ impl Atars {
     fn handle_click(&mut self, pos: SquarePosition) {
         match self.selected {
             None => {
-                if self.board.get(pos) == Some(self.turn) {
+                if self.board[pos] == Some(self.turn) {
                     self.selected = Some(pos);
                 }
             }
@@ -258,16 +282,12 @@ impl Atars {
 
     fn is_valid_move(&self, move_: &Move) -> bool {
         move_.distance() <= 2 
-        && self.board.get(move_.from) == Some(self.turn)
-        && self.board.get(move_.to) == None
+        && self.board[move_.from] == Some(self.turn)
+        && self.board[move_.to] == None
     }
 
     fn perform_move(&mut self, move_: Move) {
-        if self.is_valid_move(&move_) {
-            self.board.set(move_.to, Some(self.turn));
-            if move_.distance() == 2 {
-                self.board.set(move_.from, None);
-            }
+        if self.is_valid_move(&move_) && self.board.perform_move(&move_) {
             self.turn = self.turn.other();
         }
         self.selected = None;
