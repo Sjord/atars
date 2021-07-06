@@ -43,7 +43,23 @@ impl Piece {
     }
 }
 
-type SquarePosition = Point2<usize>;
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct SquarePosition {
+    x: usize,
+    y: usize,
+}
+
+impl SquarePosition {
+    fn new(x: usize, y: usize) -> SquarePosition {
+        SquarePosition { x, y }
+    }
+
+    fn distance(&self, other: &SquarePosition) -> usize {
+        let horizontal = abs_difference(self.x, other.x);
+        let vertical = abs_difference(self.y, other.y);
+        std::cmp::max(horizontal, vertical)
+    }
+}
 
 struct Board {
     board : [Option<Piece>; 49]
@@ -65,6 +81,7 @@ impl Board {
             None => false,
             Some(p) => {
                 self[move_.to] = Some(p);
+                self.turn_surrounding(p, move_.to);
                 if move_.distance() == 2 {
                     self[move_.from] = None;
                 }
@@ -72,7 +89,42 @@ impl Board {
             }
         }
     }
+
+    fn turn_surrounding(&mut self, mover: Piece, pos: SquarePosition) {
+        for pos in self.get_surrounding(pos) {
+            if self[pos] == Some(mover.other()) {
+                self[pos] = Some(mover);
+            }
+        }
+    }
+
+    fn get_surrounding(&self, origin: SquarePosition) -> Vec<SquarePosition> {
+        let mut squares = Vec::new();
+        for x in 0..7 {
+            for y in 0..7 {
+                let pos = SquarePosition::new(x, y);
+                if origin.distance(&pos) == 1 {
+                    squares.push(pos);
+                }
+            }
+        }
+        squares
+    }
 }
+
+#[test]
+fn test_get_surrounding() {
+    let b = Board::new();
+    let s = b.get_surrounding(SquarePosition::new(0, 0));
+    assert_eq!(s.len(), 3);
+
+    let s = b.get_surrounding(SquarePosition::new(3, 3));
+    assert_eq!(s.len(), 8);
+
+    let s = b.get_surrounding(SquarePosition::new(6, 3));
+    assert_eq!(s.len(), 5);
+}
+
 
 impl Index<SquarePosition> for Board {
     type Output = Option<Piece>;
@@ -189,9 +241,7 @@ impl Move {
     }
 
     fn distance(&self) -> usize {
-        let horizontal = abs_difference(self.from.x, self.to.x);
-        let vertical = abs_difference(self.from.y, self.to.y);
-        std::cmp::max(horizontal, vertical)
+        self.from.distance(&self.to)
     }
 }
 
