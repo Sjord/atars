@@ -4,6 +4,7 @@ use coffee::{Game, Timer};
 use coffee::input::Mouse;
 use coffee::input::mouse::Button;
 use nalgebra::geometry::Point2;
+use std::cmp::Ordering;
 use std::ops::Index;
 use std::ops::IndexMut;
 use std::vec::Vec;
@@ -100,15 +101,39 @@ impl Board {
 
     fn get_surrounding(&self, origin: SquarePosition) -> Vec<SquarePosition> {
         let mut squares = Vec::new();
-        for x in 0..7 {
-            for y in 0..7 {
-                let pos = SquarePosition::new(x, y);
-                if origin.distance(&pos) == 1 {
-                    squares.push(pos);
-                }
+        for pos in self.all_positions() {
+            if origin.distance(&pos) == 1 {
+                squares.push(pos);
             }
         }
         squares
+    }
+
+    fn all_positions(&self) -> Vec<SquarePosition>  {
+        let mut squares = Vec::new();
+        for x in 0..7 {
+            for y in 0..7 {
+                let pos = SquarePosition::new(x, y);
+                squares.push(pos);
+            }
+        }
+        squares
+    }
+
+    fn is_full(&self) -> bool {
+        self.board.iter().all(|pos| *pos != None)
+    }
+
+    fn majority(&self) -> Option<Piece> {
+        match self.count(Piece::White).cmp(&self.count(Piece::Black)) {
+            Ordering::Greater => Some(Piece::White),
+            Ordering::Equal => None,
+            Ordering::Less => Some(Piece::Black),
+        }
+    }
+
+    fn count(&self, piece: Piece) -> usize {
+        self.board.iter().filter(|p| **p == Some(piece)).count()
     }
 }
 
@@ -123,6 +148,18 @@ fn test_get_surrounding() {
 
     let s = b.get_surrounding(SquarePosition::new(6, 3));
     assert_eq!(s.len(), 5);
+}
+
+#[test]
+fn test_majority() {
+    let mut b = Board::new();
+    assert_eq!(b.majority(), None);
+
+    b[SquarePosition::new(1, 1)] = Some(Piece::Black);
+    assert_eq!(b.majority(), Some(Piece::Black));
+    
+    b[SquarePosition::new(1, 1)] = Some(Piece::White);
+    assert_eq!(b.majority(), Some(Piece::White));
 }
 
 
