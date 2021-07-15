@@ -110,6 +110,21 @@ impl Board {
     fn count(&self, piece: Piece) -> usize {
         self.board.iter().filter(|p| **p == Some(piece)).count()
     }
+
+    pub fn pieces(&self) -> Vec<PiecePosition> {
+        let mut result = Vec::new();
+        for pos in self.all_positions() {
+            if let Some(piece) = self[pos] {
+                result.push(PiecePosition { pos, piece })
+            }
+        }
+        result
+    }
+}
+
+pub struct PiecePosition {
+    pub pos: SquarePosition,
+    pub piece: Piece,
 }
 
 #[test]

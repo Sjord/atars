@@ -117,20 +117,14 @@ impl Atars {
         let mut mesh = Mesh::new();
         let grid = CoordinateGrid::new(frame.width(), frame.height());
 
-        for x in 0..7 {
-            for y in 0..7 {
-                let pos = SquarePosition::new(x, y);
-                let p = self.game.board[pos];
-                if let Some(p) = p {
-                    let piece = Shape::Ellipse {
-                        center: grid.center(pos),
-                        horizontal_radius: grid.piece_radius(),
-                        vertical_radius: grid.piece_radius(),
-                        rotation: 0.0
-                    };
-                    mesh.fill(piece, p.into());
-                }
-            }
+        for pp in self.game.board.pieces() {
+            let piece = Shape::Ellipse {
+                center: grid.center(pp.pos),
+                horizontal_radius: grid.piece_radius(),
+                vertical_radius: grid.piece_radius(),
+                rotation: 0.0
+            };
+            mesh.fill(piece, pp.piece.into());
         }
 
         mesh
