@@ -120,6 +120,23 @@ impl Board {
         }
         result
     }
+
+    fn blank_positions(&self) -> Vec<SquarePosition> {
+        self.all_positions().into_iter().filter(|pos| self[*pos] == None).collect()
+    }
+
+    fn get_moves(&self, piece: Piece) -> Vec<Move> {
+        let mut result = Vec::new();
+        for to in self.blank_positions() {
+            for from in self.get_surrounding(to) {
+                if self[from] == Some(piece) {
+                    result.push(Move::new(from, to));
+                    break;
+                }
+            }
+        }
+        result
+    }
 }
 
 pub struct PiecePosition {
