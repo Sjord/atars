@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::ops::Index;
 use std::ops::IndexMut;
 use std::vec::Vec;
+use crate::ai::ComputerPlayer;
 
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -125,7 +126,7 @@ impl Board {
         self.all_positions().into_iter().filter(|pos| self[*pos] == None).collect()
     }
 
-    fn get_moves(&self, piece: Piece) -> Vec<Move> {
+    pub fn get_moves(&self, piece: Piece) -> Vec<Move> {
         let mut result = Vec::new();
         for to in self.blank_positions() {
             for from in self.get_surrounding(to) {
@@ -188,6 +189,7 @@ impl IndexMut<SquarePosition> for Board {
 pub struct Atars {
     pub board : Board,
     pub turn: Piece,
+    player: ComputerPlayer,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -227,6 +229,7 @@ impl Atars {
         Atars { 
             board: Board::new(), 
             turn: Piece::White,
+            player: ComputerPlayer::new()
         }
     }
 
@@ -240,6 +243,9 @@ impl Atars {
         let done_move = self.is_valid_move(&move_) && self.board.perform_move(&move_);
         if done_move {
             self.turn = self.turn.other();
+            if self.turn == Piece::Black {
+                self.perform_move(self.player.get_move(&self.board, self.turn));
+            }
         }
         done_move
     }

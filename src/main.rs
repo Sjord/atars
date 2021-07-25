@@ -3,6 +3,7 @@ use coffee::Game;
 
 mod game;
 mod gui;
+mod ai;
 
 fn main() {
     gui::Atars::run(WindowSettings {
