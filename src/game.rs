@@ -3,6 +3,7 @@ use std::ops::Index;
 use std::ops::IndexMut;
 use std::vec::Vec;
 use crate::ai::ComputerPlayer;
+use std::{thread, time};
 
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -38,6 +39,7 @@ impl SquarePosition {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct Board {
     board : [Option<Piece>; 49]
 }
@@ -52,7 +54,7 @@ impl Board {
         b
     }
 
-    fn perform_move(&mut self, move_: &Move) -> bool {
+    pub fn perform_move(&mut self, move_: &Move) -> bool {
         let p = self[move_.from];
         match p {
             None => false,
@@ -68,17 +70,17 @@ impl Board {
     }
 
     fn turn_surrounding(&mut self, mover: Piece, pos: SquarePosition) {
-        for pos in self.get_surrounding(pos) {
+        for pos in self.get_surrounding(pos, 1) {
             if self[pos] == Some(mover.other()) {
                 self[pos] = Some(mover);
             }
         }
     }
 
-    fn get_surrounding(&self, origin: SquarePosition) -> Vec<SquarePosition> {
+    fn get_surrounding(&self, origin: SquarePosition, distance: usize) -> Vec<SquarePosition> {
         let mut squares = Vec::new();
         for pos in self.all_positions() {
-            if origin.distance(&pos) == 1 {
+            if origin != pos && origin.distance(&pos) <= distance {
                 squares.push(pos);
             }
         }
@@ -108,7 +110,7 @@ impl Board {
         }
     }
 
-    fn count(&self, piece: Piece) -> usize {
+    pub fn count(&self, piece: Piece) -> usize {
         self.board.iter().filter(|p| **p == Some(piece)).count()
     }
 
@@ -129,7 +131,7 @@ impl Board {
     pub fn get_moves(&self, piece: Piece) -> Vec<Move> {
         let mut result = Vec::new();
         for to in self.blank_positions() {
-            for from in self.get_surrounding(to) {
+            for from in self.get_surrounding(to, 2) {
                 if self[from] == Some(piece) {
                     result.push(Move::new(from, to));
                     break;
@@ -137,6 +139,10 @@ impl Board {
             }
         }
         result
+    }
+
+    fn moves_are_possible(&self, piece: Piece) -> bool {
+        !self.get_moves(piece).is_empty()
     }
 }
 
@@ -148,14 +154,17 @@ pub struct PiecePosition {
 #[test]
 fn test_get_surrounding() {
     let b = Board::new();
-    let s = b.get_surrounding(SquarePosition::new(0, 0));
+    let s = b.get_surrounding(SquarePosition::new(0, 0), 1);
     assert_eq!(s.len(), 3);
 
-    let s = b.get_surrounding(SquarePosition::new(3, 3));
+    let s = b.get_surrounding(SquarePosition::new(3, 3), 1);
     assert_eq!(s.len(), 8);
 
-    let s = b.get_surrounding(SquarePosition::new(6, 3));
+    let s = b.get_surrounding(SquarePosition::new(6, 3), 1);
     assert_eq!(s.len(), 5);
+
+    let s = b.get_surrounding(SquarePosition::new(0, 0), 2);
+    assert_eq!(s.len(), 8);
 }
 
 #[test]
@@ -243,6 +252,17 @@ impl Atars {
         let done_move = self.is_valid_move(&move_) && self.board.perform_move(&move_);
         if done_move {
             self.turn = self.turn.other();
+
+            if !self.board.moves_are_possible(self.turn) {
+                let winner = self.board.majority();
+                match winner {
+                    Some(Piece::White) => println!("White wins!"),
+                    Some(Piece::Black) => println!("Black wins!"),
+                    None => println!("Draw"),
+                }
+                panic!("game over");
+            }
+
             if self.turn == Piece::Black {
                 self.perform_move(self.player.get_move(&self.board, self.turn));
             }
