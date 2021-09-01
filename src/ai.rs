@@ -1,4 +1,4 @@
-use crate::game::{Board, Piece, Move};
+use crate::game::{Atars, Move};
 
 pub struct ComputerPlayer {
 }
@@ -8,7 +8,9 @@ impl ComputerPlayer {
         ComputerPlayer {}
     }
 
-    pub fn get_move(&self, board: &Board, turn: Piece) -> Move {
+    pub fn get_move(&self, game: &Atars) -> Move {
+        let board = &game.board;
+        let turn = game.turn;
         let moves = board.get_moves(turn);
         moves.into_iter().max_by_key(|m| {
             let mut hypo_board=  board.clone();

@@ -2,9 +2,6 @@ use std::cmp::Ordering;
 use std::ops::Index;
 use std::ops::IndexMut;
 use std::vec::Vec;
-use crate::ai::ComputerPlayer;
-use std::{thread, time};
-
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Piece {
@@ -96,10 +93,6 @@ impl Board {
             }
         }
         squares
-    }
-
-    fn is_full(&self) -> bool {
-        self.board.iter().all(|pos| *pos != None)
     }
 
     fn majority(&self) -> Option<Piece> {
@@ -198,7 +191,6 @@ impl IndexMut<SquarePosition> for Board {
 pub struct Atars {
     pub board : Board,
     pub turn: Piece,
-    player: ComputerPlayer,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -237,8 +229,7 @@ impl Atars {
     pub fn new() -> Atars {
         Atars { 
             board: Board::new(), 
-            turn: Piece::White,
-            player: ComputerPlayer::new()
+            turn: Piece::White
         }
     }
 
@@ -252,21 +243,15 @@ impl Atars {
         let done_move = self.is_valid_move(&move_) && self.board.perform_move(&move_);
         if done_move {
             self.turn = self.turn.other();
-
-            if !self.board.moves_are_possible(self.turn) {
-                let winner = self.board.majority();
-                match winner {
-                    Some(Piece::White) => println!("White wins!"),
-                    Some(Piece::Black) => println!("Black wins!"),
-                    None => println!("Draw"),
-                }
-                panic!("game over");
-            }
-
-            if self.turn == Piece::Black {
-                self.perform_move(self.player.get_move(&self.board, self.turn));
-            }
         }
         done_move
+    }
+
+    pub fn is_finished(&self) -> bool {
+        !self.board.moves_are_possible(self.turn)
+    }
+
+    pub fn winner(&self) -> Option<Piece> {
+        self.board.majority()
     }
 }

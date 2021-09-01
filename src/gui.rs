@@ -4,11 +4,18 @@ use coffee::{Game, Timer};
 use coffee::input::Mouse;
 use coffee::input::mouse::Button;
 
-use crate::game::{SquarePosition, Move};
+use crate::ai::ComputerPlayer;
+use crate::game::{Move, Piece, SquarePosition};
+
+enum MouseAction {
+    Selected(SquarePosition),
+    Move(Move),
+}
 
 pub struct Atars {
     game: crate::game::Atars,
-    selected : Option<SquarePosition>
+    mouse_action: Option<MouseAction>,
+    oponent: ComputerPlayer,
 }
 
 impl Game for Atars {
@@ -16,8 +23,7 @@ impl Game for Atars {
     type LoadingScreen = (); // No loading screen
 
     fn load(_window: &Window) -> Task<Atars> {
-        // Load your game assets here. Check out the `load` module!
-        Task::succeed(|| Atars::new())
+        Task::succeed(Atars::new)
     }
 
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
@@ -41,6 +47,31 @@ impl Game for Atars {
         for point in clicks {
             let pos = grid.from_point(point);
             self.handle_click(pos);
+        }
+    }
+
+    fn update(&mut self, _window: &Window) {
+        match self.game.turn {
+            Piece::White => {
+                if let Some(MouseAction::Move(m)) = self.mouse_action {
+                    self.mouse_action = None;
+                    self.game.perform_move(m);
+                }
+            } 
+            Piece::Black => {
+                let m = self.oponent.get_move(&self.game);
+                self.game.perform_move(m);
+            }
+        }
+
+        if self.game.is_finished() {
+            let winner = self.game.winner();
+            match winner {
+                Some(Piece::White) => println!("White wins!"),
+                Some(Piece::Black) => println!("Black wins!"),
+                None => println!("Draw"),
+            }
+            panic!("game over");
         }
     }
 }
@@ -97,7 +128,8 @@ impl Atars {
     fn new() -> Atars {
         Atars { 
             game: crate::game::Atars::new(),
-            selected: None,
+            mouse_action: None,
+            oponent: ComputerPlayer::new()
         }
     }
 
@@ -105,7 +137,7 @@ impl Atars {
         let grid = CoordinateGrid::new(frame.width(), frame.height());
         let mut mesh = Mesh::new();
 
-        if let Some(sel_pos) = self.selected {
+        if let Some(MouseAction::Selected(sel_pos)) = self.mouse_action {
             let rect = Shape::Rectangle(grid.rectangle(sel_pos));
             mesh.stroke(rect, Color::RED, 1.0)
         }
@@ -153,16 +185,17 @@ impl Atars {
     }
 
     fn handle_click(&mut self, pos: SquarePosition) {
-        match self.selected {
+        match self.mouse_action {
             None => {
                 if self.game.board[pos] == Some(self.game.turn) {
-                    self.selected = Some(pos);
+                    self.mouse_action = Some(MouseAction::Selected(pos));
                 }
             }
-            Some(old_pos) => {
-                self.game.perform_move(Move::new(old_pos, pos));
-                self.selected = None;
+            Some(MouseAction::Selected(old_pos)) => {
+                let m = Move::new(old_pos, pos);
+                self.mouse_action = Some(MouseAction::Move(m));
             }
+            Some(MouseAction::Move(_)) => ()
         }
     }
 }
